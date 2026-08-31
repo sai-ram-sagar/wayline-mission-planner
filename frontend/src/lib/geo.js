@@ -1,4 +1,8 @@
-import { distance as turfDistance, point, bearing as turfBearing } from '@turf/turf';
+// Individual Turf packages rather than the @turf/turf meta-package: we use
+// three functions, and the meta-package pulls the whole library into the bundle.
+import turfDistance from '@turf/distance';
+import turfBearing from '@turf/bearing';
+import { point } from '@turf/helpers';
 import { ACTION_BY_TYPE, TURN_MODE_BY_VALUE } from '../constants';
 
 const toPoint = (waypoint) => point([waypoint.lng, waypoint.lat]);

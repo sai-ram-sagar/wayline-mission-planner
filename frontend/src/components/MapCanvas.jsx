@@ -27,6 +27,24 @@ const takeoffIcon = L.divIcon({
   iconAnchor: [12, 12],
 });
 
+/**
+ * Re-measures the container, but only once it actually has layout.
+ *
+ * Leaflet caches the container size at construction. If the map mounts into a
+ * container that is still 0x0 — a hidden panel, or a flex layout that has not
+ * resolved yet — a later invalidateSize sees the size grow from zero and pans
+ * the view by half the difference, which is half the container: every tile and
+ * marker ends up visibly offset. Skipping the call while the container has no
+ * size avoids that, and keeps Leaflet's normal centre-preserving pan for real
+ * resizes such as the inspector panel opening.
+ */
+function resizeIfLaidOut(map) {
+  const element = map.getContainer();
+  if (!element.clientWidth || !element.clientHeight) return false;
+  map.invalidateSize({ animate: false });
+  return true;
+}
+
 function ClickHandler({ onMapClick }) {
   useMapEvents({
     click(event) {
@@ -45,13 +63,23 @@ function FitBounds({ points, fitToken }) {
   const map = useMap();
 
   useEffect(() => {
-    if (fitToken === null || fitToken === undefined) return;
-    if (!points.length) return;
-    if (points.length === 1) {
-      map.setView(points[0], Math.max(map.getZoom(), 17));
-      return;
-    }
-    map.fitBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 18 });
+    if (fitToken === null || fitToken === undefined) return undefined;
+    if (!points.length) return undefined;
+
+    // Fit on the next frame, after re-measuring the container. Leaflet derives
+    // the zoom from map.getSize(); if the flex layout has changed (the
+    // inspector opening, or a fresh mount) that cached size is stale and
+    // fitBounds lands on the wrong zoom.
+    const frame = requestAnimationFrame(() => {
+      resizeIfLaidOut(map);
+      if (points.length === 1) {
+        map.setView(points[0], Math.max(map.getZoom(), 17));
+        return;
+      }
+      map.fitBounds(L.latLngBounds(points), { padding: [56, 56], maxZoom: 18 });
+    });
+
+    return () => cancelAnimationFrame(frame);
   }, [fitToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
@@ -62,9 +90,16 @@ function ResizeWatcher() {
   const map = useMap();
   useEffect(() => {
     const container = map.getContainer();
-    const observer = new ResizeObserver(() => map.invalidateSize());
+    const invalidate = () => resizeIfLaidOut(map);
+    // Once after the first frame, in case the flex layout had not settled when
+    // Leaflet measured the container, then on every subsequent resize.
+    const frame = requestAnimationFrame(invalidate);
+    const observer = new ResizeObserver(invalidate);
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
   }, [map]);
   return null;
 }

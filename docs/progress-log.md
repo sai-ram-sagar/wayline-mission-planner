@@ -207,6 +207,84 @@ Phase 3 — the global settings panel, the per-waypoint inspector with actions, 
 
 ---
 
+## Phase 3 — Waypoint and action editing, and save (COMPLETE, 2026-09-01)
+
+### What was built
+
+- `components/controls.jsx` — the shared form vocabulary: `Segmented`, `LabeledSelect`,
+  `NumberStepper` (coarse/fine steppers like the reference's -100/-10/+10/+100), `Collapsible`
+  and a hover/focus `Hint`.
+- `components/SettingsPanel.jsx` — global mission settings in five collapsible groups: Aircraft,
+  Takeoff, Altitude and speed, Flight behaviour, Finish and safety. Covers every global field in
+  feature-reference section 5.
+- `components/WaypointInspector.jsx` — per-waypoint editor (React Hook Form + Zod via
+  `zodResolver`): latitude, longitude, altitude, speed, waypoint type, aircraft yaw and heading,
+  plus the action list with per-action parameter editors, reordering and removal.
+- `components/SaveMissionDialog.jsx` — name and description, RHF + Zod, create or update.
+- `Editor` rewritten: a tabbed left panel (Waypoints / Settings), the map, a right-hand inspector,
+  a New/Undo/Fit/Clear/Save toolbar, `?id=` deep-loading, a save/update flash, and a
+  `beforeunload` guard.
+
+### Key decisions
+
+- **The store stays the source of truth; RHF is the input layer.** The inspector uses RHF's
+  `values` (not `defaultValues`) so switching waypoint re-syncs the form, and a `watch`
+  subscription pushes valid edits into Zustand. That subscription carries an **equality guard** —
+  without it, committing changes `values`, which re-fires the subscription, loops, and grows the
+  undo history without bound.
+- **The client mirrors the server's rules rather than trusting the round trip.** Selecting a
+  non-stopping waypoint type strips and hides Hover; selecting an aircraft with no yaw gimbal
+  strips and hides Gimbal Yaw. Both mirror observed reference behaviour and both are enforced again
+  by the API.
+- **`NumberStepper` keeps a local text draft** so a user can clear the box or type a lone "-"
+  without the value being clobbered on each keystroke; the value commits on blur or Enter.
+- Editor callbacks passed to the inspector are wrapped in `useCallback` so the watch subscription
+  does not re-bind on every render.
+
+### Bugs found and fixed during testing
+
+1. **Stuck "Loading wayline…" overlay.** The load effect depended on the store's `waylineId`. When
+   the fetch resolved, `loadWayline` set that id, the effect re-ran, its cleanup set `cancelled`,
+   and the in-flight `finally` therefore skipped `setLoading(false)`. Fixed by tracking the fetched
+   id in a ref and depending only on the URL parameter.
+2. **Turf import weight.** Swapped `@turf/turf` for `@turf/distance`, `@turf/bearing` and
+   `@turf/helpers`. (It turned out the meta-package was already tree-shaken — the bundle did not
+   shrink — but importing three functions from three packages is the honest dependency.)
+3. **Leaflet zero-size container.** `MapCanvas` now skips `invalidateSize` while the container has
+   no layout. If Leaflet is allowed to "correct" a size that grew from 0x0, it pans the view by half
+   the container and every tile and marker ends up offset. Real resizes keep Leaflet's normal
+   centre-preserving pan.
+
+### Two environment artifacts worth recording (not product bugs)
+
+- **Transient "Invalid hook call" errors.** Vite discovered `react-hook-form`, `@hookform/resolvers`
+  and `zod` at runtime, re-optimised, and briefly served two React copies. The dev-server log
+  (`new dependencies optimized … reloading`) confirmed it; a reload clears it.
+- **Zero-size layout in the in-app browser pane.** While that pane is hidden, `document.hidden` is
+  true and `window.innerWidth/Height`, `documentElement.clientHeight` and every element's rect
+  report 0, so Leaflet measures a 0x0 container and renders a single tile. This is not reproducible
+  in a real browser. **Verification of map layout now happens in real Chrome, not the in-app pane.**
+
+### Testing
+
+In-app pane (functional) and real Chrome (visual). Added waypoints and confirmed the inspector
+opens on the new waypoint; added Take Photo and Hover and watched the photo count go to 1 and the
+duration rise 56 s → 59 s; switched the waypoint type to "Curved route. Aircraft continues" and
+watched Hover be removed, the option disappear, an explanatory note appear and the duration fall to
+54 s; switched the aircraft to Mavic 3T and watched Gimbal Yaw leave the action list and a
+"no gimbal yaw" badge appear. Saved a two-waypoint mission (`POST`), confirmed via the API that it
+persisted, then added a third waypoint plus a Gimbal Tilt action at -40 deg and pressed Update —
+the API showed **one** wayline with three waypoints and the action parameter intact, confirming
+`PUT` rather than a duplicate create. Reloading `/editor?id=…` restores the mission, and the map
+fits the route. `npm run build` succeeds with no console errors in Chrome.
+
+### Next
+
+Phase 4 — the wayline library: list, search, sort, SVG route thumbnails, load into the editor,
+duplicate and delete.
+
+---
+
 ## Phase plan
 
 | Phase | Contents | Status |
@@ -214,7 +292,7 @@ Phase 3 — the global settings panel, the per-waypoint inspector with actions, 
 | 0 | Reference exploration, `feature-reference.md`, progress log | **Complete** |
 | 1 | Backend scaffold, DB schema, seeds, REST API, Zod validation | **Complete** |
 | 2 | Frontend scaffold, routing, Leaflet map, click-to-add waypoints, store | **Complete** |
-| 3 | Waypoint editing, actions, global settings, live stats | Not started |
+| 3 | Waypoint inspector, actions, global settings, save/update | **Complete** |
 | 4 | Wayline library: list, search, sort, load, duplicate, delete, thumbnails | Not started |
 | 5 | Drone fleet and assignments | Not started |
 | 6 | Polish, error handling, loading states, README | Not started |

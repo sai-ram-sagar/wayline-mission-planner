@@ -337,6 +337,53 @@ assignment table with status progression.
 
 ---
 
+## Phase 5 — Drone fleet and assignments (COMPLETE, 2026-09-01)
+
+### What was built
+
+- `components/StatusBadge.jsx` — one badge component covering both vocabularies: drone status
+  (idle / flying / offline) and assignment status (pending / synced / in progress / complete /
+  failed).
+- `components/AssignWaylineDialog.jsx` — pick one saved wayline, then check one or more drones.
+  Mirrors the reference's "select route, then select device" plan flow.
+- `pages/Drones.jsx` — the fleet grid plus the assignment table, split into **Incomplete** and
+  **Completed** tabs as the reference splits its task list.
+
+### Key decisions
+
+- **Offline drones can still be assigned, but the dialog says so.** An assignment is a queued
+  instruction rather than a live command, so blocking it would be wrong; instead the dialog names
+  the offline drones and explains the assignment stays pending. Silently allowing it would have
+  been the worse of the two failure modes.
+- **"Completed" means terminal, not successful** — it holds both `complete` and `failed`, so
+  nothing falls out of both tabs.
+- **Status advances one step at a time** along `pending → synced → in_progress → complete`, with a
+  separate "mark failed" available until the assignment reaches a terminal state. The button is
+  labelled with the state it moves *to*, so the click's effect is legible.
+- The wayline name in each row links back to `/editor?id=…`, closing the loop from assignment to
+  the mission it refers to.
+- The page loads drones, waylines and assignments in one `Promise.all`, and the assignment list
+  arrives pre-joined with wayline and drone names from the API, so the table needs no extra calls.
+
+### Testing
+
+Drove the whole flow in the browser: the fleet rendered the four seeded drones with correct status
+badges; the assign dialog listed all five saved waylines and all four drones; selecting "Riverbank
+Corridor" updated the summary line to "5 waypoints · Matrice 4T"; checking an idle and an offline
+drone produced the offline warning naming Delta-04 and a submit button reading "Assign to 2 drones";
+submitting created exactly two pending rows and moved the tab count to Incomplete 2. Advancing one
+assignment through Synced → In progress → Complete moved it out of Incomplete and into Completed
+(1/1); marking the other Failed moved it too (0/2); the remove dialog stated that the wayline itself
+is unaffected, and removing left 0/1. A page reload showed the surviving failed assignment intact,
+with no console errors. `npm run build` succeeds.
+
+### Next
+
+Phase 6 — polish: responsive behaviour at narrow widths, an error boundary, consistent loading and
+error states, keyboard affordances, and the README.
+
+---
+
 ## Phase plan
 
 | Phase | Contents | Status |
@@ -346,5 +393,5 @@ assignment table with status progression.
 | 2 | Frontend scaffold, routing, Leaflet map, click-to-add waypoints, store | **Complete** |
 | 3 | Waypoint inspector, actions, global settings, save/update | **Complete** |
 | 4 | Wayline library: list, search, sort, load, duplicate, delete, thumbnails | **Complete** |
-| 5 | Drone fleet and assignments | Not started |
+| 5 | Drone fleet and assignments | **Complete** |
 | 6 | Polish, error handling, loading states, README | Not started |

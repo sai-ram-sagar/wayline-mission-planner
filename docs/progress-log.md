@@ -285,6 +285,58 @@ duplicate and delete.
 
 ---
 
+## Phase 4 — Wayline library (COMPLETE, 2026-09-01)
+
+### What was built
+
+- `components/RouteThumbnail.jsx` — the route preview on each card: the wayline's coordinates
+  projected into a fixed 240x96 viewBox and drawn as an inline SVG polyline, with a green start
+  marker and a ringed end marker.
+- `components/status.jsx` — shared `Spinner`, `SkeletonCard`, `ErrorState` (with retry) and
+  `EmptyState`.
+- `pages/Library.jsx` — the real Library: responsive card grid, search across name and description,
+  aircraft-model filter, sort (newest / oldest / name), open-in-editor, duplicate, delete.
+
+### Key decisions
+
+- **Thumbnails are inline SVG, not map snapshots.** A grid of Leaflet mini-maps would fire tile
+  requests per card and be slow; the SVG needs no network, renders instantly and stays legible at
+  thumbnail size. It is fed by the `path` array the list endpoint already returns, so there is no
+  N+1 fetch. `pathToSvgPoints` handles the degenerate cases — a single waypoint, or a perfectly
+  straight north-south / east-west line where one axis has zero span.
+- **The model filter is derived from the data**, so it only ever offers models that are actually
+  present rather than the full catalogue.
+- **Duplicate is client-side** (`GET /:id` then `POST /`) because the API deliberately has no
+  duplicate endpoint. The copy is named `"<name> (copy)"`, truncated to the 120-character limit.
+- **Delete confirms in-app** and states the consequence — that assignments for the wayline go with
+  it — because the cascade is not otherwise visible to the user.
+- Search matches description as well as name; filtering it down shows "N of M" in the heading so
+  the filter's effect is legible.
+
+### Testing
+
+Seeded four extra waylines through the API to give the grid real content, then drove the page:
+searching "creek" narrowed to the one wayline whose *description* mentions it; the model filter
+showed "1 of 5" for Mavic 3T; duplicating "Riverbank Corridor" produced "Riverbank Corridor (copy)"
+at the top of the newest-first order with a confirmation flash and a count of 6; deleting the copy
+showed the consequence-stating dialog and returned the count to 5; opening "Depot Rooftop Survey"
+navigated to `/editor?id=…` and loaded 6 waypoints with stats of 1.88 km, 2 m 27 s, 6 waypoints and
+3 photos — the photo count correctly matching the three `takePhoto` actions on that route.
+`npm run build` succeeds.
+
+### Note on verification tooling
+
+Screenshot capture on the Chrome tab intermittently times out on this machine, so this phase was
+verified through the accessibility tree, page text and direct DOM assertions rather than images.
+Those are stronger checks for list behaviour anyway.
+
+### Next
+
+Phase 5 — the drone fleet page: mock fleet list, assign a wayline to one or more drones, and an
+assignment table with status progression.
+
+---
+
 ## Phase plan
 
 | Phase | Contents | Status |
@@ -293,6 +345,6 @@ duplicate and delete.
 | 1 | Backend scaffold, DB schema, seeds, REST API, Zod validation | **Complete** |
 | 2 | Frontend scaffold, routing, Leaflet map, click-to-add waypoints, store | **Complete** |
 | 3 | Waypoint inspector, actions, global settings, save/update | **Complete** |
-| 4 | Wayline library: list, search, sort, load, duplicate, delete, thumbnails | Not started |
+| 4 | Wayline library: list, search, sort, load, duplicate, delete, thumbnails | **Complete** |
 | 5 | Drone fleet and assignments | Not started |
 | 6 | Polish, error handling, loading states, README | Not started |

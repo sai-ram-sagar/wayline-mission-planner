@@ -1,0 +1,26 @@
+node_modules/
+dist/
+build/
+
+# Local environment overrides — commit .env.example instead
+.env
+.env.local
+.env.*.local
+
+# SQLite database files (created on first run, seeded automatically)
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+backend/data/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+*.log
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

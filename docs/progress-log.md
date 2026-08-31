@@ -72,12 +72,78 @@ validation, transactional nested wayline writes.
 
 ---
 
+## Phase 1 — Backend scaffold (COMPLETE, 2026-09-01)
+
+### What was built
+
+`backend/` — Express + better-sqlite3 API on port 4000.
+
+- `config.js` — dotenv loader with working defaults, so the server runs with no `.env` at all.
+  `.env.example` documents `PORT`, `DB_PATH`, `CORS_ORIGIN`, `SEED_DRONES`.
+- `db.js` — creates the schema on first run (`CREATE TABLE IF NOT EXISTS`), enables WAL and
+  foreign keys, seeds a 4-drone mock fleet (Alpha-01 / Bravo-02 / Charlie-03 / Delta-04) only when
+  the table is empty.
+- `lib/schemas.js` — the Zod vocabulary and all request schemas.
+- `lib/http.js` — `HttpError`, `asyncHandler`, `validateBody` middleware.
+- `routes/waylines.js`, `routes/drones.js`, `routes/assignments.js`.
+- `server.js` — helmet, CORS allow-list, JSON body limit, `/api/health`, central error handler.
+
+### Endpoints
+
+`GET|POST /api/waylines` · `GET|PUT|DELETE /api/waylines/:id` ·
+`GET|POST /api/drones` ·
+`GET|POST /api/assignments` · `PATCH|DELETE /api/assignments/:id` · `GET /api/health`
+
+### Key decisions
+
+- **Enums are enforced twice** — as Zod enums and as SQLite `CHECK` constraints — so bad data cannot
+  land even if a future route forgets to validate.
+- **Action params are a discriminated union on `action_type`.** A `zoom` cannot carry a `duration`.
+  Each branch is `.strict()`, so typos in params are rejected rather than silently stored.
+- **The reference's conditional rule is enforced server-side**: a `hover` action on a waypoint whose
+  `turn_mode` is `curvedContinue` is a 400, because the aircraft never stops there.
+- **`takeoffSpeed` is capped at 15 m/s**, matching the disabled "+" stepper observed in the reference.
+- **`waypoints.speed` is nullable** and null means "inherit the mission's global speed" — this is how
+  the reference behaves, and it keeps the global-speed control meaningful after per-waypoint edits.
+- **PUT is a full replace.** Waypoints and actions are deleted and reinserted inside a
+  `better-sqlite3` transaction, so ordering is always `order_index = array index` and a failed write
+  cannot leave a half-updated tree.
+- **`GET /api/waylines` returns a `path` array** of `{lat,lng}` per wayline. This lets the Library
+  draw an SVG route thumbnail per card without N+1 detail fetches.
+- **Assignments join wayline and drone names** in the list query, so the status table needs one call.
+- Deleting a wayline cascades to waypoints, actions and assignments.
+- **No duplicate endpoint.** The brief's API list does not include one; the Library will duplicate
+  client-side with `GET /:id` followed by `POST /`.
+
+### Testing
+
+A 39-assertion smoke script exercised every endpoint against the running server: nested create,
+ordered action round-trip, defaults applied to sparse payloads, PUT replacing rather than appending
+the tree, seven distinct validation rejections (empty name, out-of-range latitude, unknown action
+type, mismatched action params, hover-on-curvedContinue, takeoff speed > 15, unknown top-level key),
+assignment fan-out with duplicate collapsing, 404s for unknown wayline/drone, the full status
+progression, and cascade deletion. **39 passed, 0 failed.** The dev database was then deleted so the
+next run re-seeds cleanly.
+
+### Deviations
+
+None from the plan. The schema adds `aircraft_model` to `waylines` and `order_index` to
+`waypoint_actions` beyond the brief's outline — the first because the reference makes the aircraft
+model a first-class property of a route, the second because actions execute in order.
+
+### Next
+
+Phase 2 — frontend scaffold: Vite + React + Tailwind, react-router with `/editor`, `/library`,
+`/drones`, the Zustand mission store, the Leaflet map with click-to-add and draggable waypoints.
+
+---
+
 ## Phase plan
 
 | Phase | Contents | Status |
 |---|---|---|
 | 0 | Reference exploration, `feature-reference.md`, progress log | **Complete** |
-| 1 | Backend scaffold, DB schema, seeds, REST API, Zod validation | Not started |
+| 1 | Backend scaffold, DB schema, seeds, REST API, Zod validation | **Complete** |
 | 2 | Frontend scaffold, routing, Leaflet map, click-to-add waypoints, store | Not started |
 | 3 | Waypoint editing, actions, global settings, live stats | Not started |
 | 4 | Wayline library: list, search, sort, load, duplicate, delete, thumbnails | Not started |

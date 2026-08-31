@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-panel-900 text-slate-200 antialiased;
+  }
+
+  /* Keep focus rings visible for keyboard users without boxing every click. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent-400 ring-offset-1 ring-offset-panel-900;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply rounded-lg border border-panel-600 bg-panel-800;
+  }
+
+  .field-label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400;
+  }
+
+  .input {
+    @apply w-full rounded border border-panel-500 bg-panel-700 px-2 py-1.5 text-sm text-slate-100
+           placeholder:text-slate-500 focus:border-accent-500 focus:outline-none;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded px-3 py-1.5 text-sm font-medium
+           transition-colors disabled:cursor-not-allowed disabled:opacity-40;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent-600 text-white hover:bg-accent-500;
+  }
+
+  .btn-ghost {
+    @apply btn border border-panel-500 bg-panel-700 text-slate-200 hover:bg-panel-600;
+  }
+
+  .btn-danger {
+    @apply btn border border-red-900/60 bg-red-950/60 text-red-300 hover:bg-red-900/60;
+  }
+
+  .segmented {
+    @apply flex overflow-hidden rounded border border-panel-500;
+  }
+
+  .segmented-option {
+    @apply flex-1 px-2 py-1.5 text-xs font-medium transition-colors;
+  }
+
+  .segmented-option-on {
+    @apply bg-accent-600 text-white;
+  }
+
+  .segmented-option-off {
+    @apply bg-panel-700 text-slate-300 hover:bg-panel-600;
+  }
+}
+
+/* --- Leaflet -------------------------------------------------------------
+   The default marker sprite breaks under bundlers, so waypoints are drawn as
+   divIcons styled here instead. */
+
+.leaflet-container {
+  @apply bg-panel-900 font-sans;
+  outline: none;
+}
+
+.leaflet-control-attribution {
+  @apply bg-panel-900/80 text-[10px] text-slate-400;
+}
+
+.leaflet-control-attribution a {
+  @apply text-slate-300;
+}
+
+.leaflet-bar a {
+  @apply bg-panel-700 text-slate-200 border-panel-500;
+}
+
+.leaflet-bar a:hover {
+  @apply bg-panel-600;
+}
+
+.wp-marker {
+  background: transparent;
+  border: none;
+}
+
+.wp-marker-inner {
+  @apply flex h-7 w-7 items-center justify-center rounded-full border-2 border-white
+         bg-accent-600 text-xs font-bold text-white shadow-lg;
+}
+
+.wp-marker-inner.is-selected {
+  @apply scale-125 border-amber-300 bg-amber-500;
+}
+
+.wp-marker-inner.is-start {
+  @apply bg-emerald-600;
+}
+
+.wp-marker-inner.is-start.is-selected {
+  @apply bg-amber-500;
+}
+
+.takeoff-marker-inner {
+  @apply flex h-6 w-6 items-center justify-center rounded-sm border-2 border-white
+         bg-slate-900 text-[10px] font-bold text-white shadow-lg;
+}

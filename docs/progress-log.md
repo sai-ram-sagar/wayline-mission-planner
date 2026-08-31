@@ -138,13 +138,82 @@ Phase 2 — frontend scaffold: Vite + React + Tailwind, react-router with `/edit
 
 ---
 
+## Phase 2 — Frontend scaffold and map editor (COMPLETE, 2026-09-01)
+
+### What was built
+
+`frontend/` — Vite + React 18 + Tailwind 3, dev server on 5173 with `/api` proxied to 4000.
+
+- `constants.js` — the display vocabulary (altitude modes, takeoff modes, the five turn modes,
+  heading modes, gimbal control, finish actions, the eleven action types with their single editable
+  parameter, and the aircraft catalogue). Values mirror the backend enums exactly.
+- `api.js` — axios client plus `describeError`, which flattens `{error, details[]}` responses into
+  one readable sentence.
+- `lib/geo.js` — Turf-based `totalDistance`, `estimatedDuration`, `photoCount`, formatters, and
+  `pathToSvgPoints` for the Library thumbnails coming in Phase 4.
+- `store.js` — the Zustand mission store: waypoints, settings, selection, dirty flag, and a bounded
+  50-step undo history.
+- `components/` — `MapCanvas`, `WaypointList`, `StatsStrip`, `Modal`/`ConfirmDialog`, `ComingSoon`.
+- `pages/` — `Editor` (built), `Library` and `Drones` (placeholders until Phases 4 and 5).
+- App shell with the three routes and an "unsaved changes" indicator.
+
+### Key decisions
+
+- **Waypoint markers are Leaflet `divIcon`s, not the default sprite.** The default marker's image
+  paths break under bundlers, and a numbered badge (S, 2, 3 …) reads far better on a dense route.
+  No icon-path shimming needed.
+- **Reordering uses pointer events, not HTML5 drag-and-drop.** The first implementation used the
+  native drag API; it silently did nothing under synthetic events, so it could not be verified, and
+  it behaves poorly on touch. The pointer-event version works for mouse, pen and touch, is testable,
+  and the grip additionally accepts Arrow Up/Down for keyboard-only reordering.
+- **No `window.confirm`.** An in-app `ConfirmDialog` replaced it — consistent chrome, and native
+  modals block automated verification. The same `Modal` will carry the save and delete flows.
+- **Map fitting is token-driven.** `MapCanvas` refits only when `fitToken` changes, so the map never
+  fights the user by recentring on every marker drag.
+- **`null` speed renders as "10 m/s (global)"** so an inherited value is visibly distinct from an
+  override.
+- **New waypoints inherit the mission's global altitude, turn mode and yaw mode**, matching the
+  reference's stated behaviour.
+- **Changing the aircraft to a model without a yaw gimbal strips existing `gimbalYaw` actions** in
+  the store, so the UI cannot hold state the backend would reject.
+- A `ResizeObserver` calls `map.invalidateSize()` so the canvas stays correct when panels resize.
+
+### Testing
+
+Driven in a real browser: added four waypoints by clicking the map (polyline and numbered markers
+drew correctly, stats read 1.54 km / 2 m 42 s / 4 / 0); dragged a marker and watched the coordinates
+and totals recompute (1.51 km / 2 m 39 s); undo restored the exact prior position and totals; set a
+reference takeoff point with the takeoff tool ("H" marker); reordered row 4 to position 1 by
+dragging the grip and confirmed the route, the S marker and the totals all followed (1.65 km /
+2 m 53 s); cleared all waypoints through the confirm dialog and undid it. `npm run build` succeeds
+(415 modules, 354 kB JS / 109 kB gzipped).
+
+### Deviations from the plan
+
+- The **live stats strip** was pulled forward from Phase 3 into Phase 2. Without it the map had no
+  feedback and the phase could not be meaningfully tested end to end. Turf was already in the stack.
+- Reordering moved from HTML5 drag-and-drop to pointer events, as described above.
+- `.claude/launch.json` exists locally for driving the dev servers and is gitignored as agent tooling.
+
+### Known gaps (intentional, land next phase)
+
+The editor cannot yet save; there is no global-settings panel and no per-waypoint inspector; the
+mission store is in memory only, so a page reload discards the mission.
+
+### Next
+
+Phase 3 — the global settings panel, the per-waypoint inspector with actions, and save
+(create/update) wired to the API.
+
+---
+
 ## Phase plan
 
 | Phase | Contents | Status |
 |---|---|---|
 | 0 | Reference exploration, `feature-reference.md`, progress log | **Complete** |
 | 1 | Backend scaffold, DB schema, seeds, REST API, Zod validation | **Complete** |
-| 2 | Frontend scaffold, routing, Leaflet map, click-to-add waypoints, store | Not started |
+| 2 | Frontend scaffold, routing, Leaflet map, click-to-add waypoints, store | **Complete** |
 | 3 | Waypoint editing, actions, global settings, live stats | Not started |
 | 4 | Wayline library: list, search, sort, load, duplicate, delete, thumbnails | Not started |
 | 5 | Drone fleet and assignments | Not started |

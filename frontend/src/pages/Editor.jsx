@@ -46,13 +46,13 @@ const TABS = [
   { key: 'settings', label: 'Settings' },
 ];
 
-function ToolbarButton({ Icon, label, onClick, disabled, danger }) {
+function ToolbarButton({ Icon, label, title, onClick, disabled, danger }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={label}
+      title={title ?? label}
       aria-label={label}
       className={danger ? 'btn-danger' : 'btn-ghost'}
     >
@@ -184,6 +184,36 @@ export default function Editor() {
     return () => clearTimeout(timer);
   }, [flash]);
 
+  // Keyboard shortcuts. Ignored while the user is typing, so Delete still
+  // edits text in the inspector and the save dialog.
+  useEffect(() => {
+    const isTyping = (target) =>
+      target instanceof HTMLElement &&
+      (target.isContentEditable ||
+        ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
+
+    const onKeyDown = (event) => {
+      if (isTyping(event.target)) return;
+
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selectedKey) {
+        event.preventDefault();
+        removeWaypoint(selectedKey);
+        return;
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
+        event.preventDefault();
+        undo();
+        return;
+      }
+      if (event.key === 'Escape' && selectedKey) {
+        selectWaypoint(null);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedKey, removeWaypoint, undo, selectWaypoint]);
+
   const handleMapClick = (latlng) => {
     if (tool === 'addWaypoint') addWaypoint(latlng);
     else if (tool === 'setTakeoff') setTakeoffPoint(latlng);
@@ -246,9 +276,9 @@ export default function Editor() {
   );
 
   return (
-    <div className="flex h-full">
+    <div className="relative flex h-full">
       {/* Waypoints / settings */}
-      <aside className="flex w-72 shrink-0 flex-col border-r border-panel-600 bg-panel-800">
+      <aside className="flex w-64 shrink-0 flex-col border-r border-panel-600 bg-panel-800 md:w-72">
         <div className="flex h-10 shrink-0 items-center border-b border-panel-600">
           <div className="flex flex-1">
             {TABS.map((entry) => (
@@ -337,6 +367,7 @@ export default function Editor() {
             <ToolbarButton
               Icon={TbArrowBackUp}
               label="Undo"
+              title="Undo (Ctrl+Z)"
               onClick={undo}
               disabled={historyDepth === 0}
             />
@@ -402,9 +433,13 @@ export default function Editor() {
         </div>
       </section>
 
-      {/* Waypoint inspector */}
+      {/* Waypoint inspector. Below xl there is not enough width for a third
+          column, so it overlays the map instead of squeezing it. */}
       {selected && (
-        <aside className="w-80 shrink-0 border-l border-panel-600 bg-panel-800">
+        <aside
+          className="absolute inset-y-0 right-0 z-[1100] w-80 shrink-0 border-l border-panel-600
+                     bg-panel-800 shadow-2xl xl:static xl:z-auto xl:shadow-none"
+        >
           <WaypointInspector
             key={selected.key}
             waypoint={selected}

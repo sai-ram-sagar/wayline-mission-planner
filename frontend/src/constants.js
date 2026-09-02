@@ -223,8 +223,13 @@ const num = (value, fallback) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+// `import.meta.env` only exists under Vite. Falling back to an empty object
+// keeps this module importable from plain Node, so the pure helpers that
+// depend on it can be unit-tested without a bundler.
+const env = import.meta.env ?? {};
+
 export const DEFAULT_MAP_VIEW = {
-  lat: num(import.meta.env.VITE_DEFAULT_MAP_LAT, -37.805),
-  lng: num(import.meta.env.VITE_DEFAULT_MAP_LNG, 145.278),
-  zoom: num(import.meta.env.VITE_DEFAULT_MAP_ZOOM, 16),
+  lat: num(env.VITE_DEFAULT_MAP_LAT, -37.805),
+  lng: num(env.VITE_DEFAULT_MAP_LNG, 145.278),
+  zoom: num(env.VITE_DEFAULT_MAP_ZOOM, 16),
 };

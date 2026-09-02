@@ -384,6 +384,66 @@ error states, keyboard affordances, and the README.
 
 ---
 
+## Phase 6 — Polish, error handling and README (COMPLETE, 2026-09-01)
+
+### What was built
+
+- `components/ErrorBoundary.jsx` — catches render errors so one broken panel cannot blank the app.
+  Mounted inside `<main>` (the nav stays usable) and keyed by pathname, so navigating away clears
+  it rather than stranding the user on the error screen. Offers "Try again" and "Reload the app".
+- **Responsive editor.** Below the `xl` breakpoint the waypoint inspector overlays the map instead
+  of squeezing it into a third column; at `xl` and above it is a normal column. The waypoint list
+  narrows from `w-72` to `w-64` on small screens.
+- **Keyboard shortcuts** in the editor, ignored while typing so they never steal keys from an
+  input: `Delete`/`Backspace` removes the selected waypoint, `Ctrl/Cmd+Z` undoes, `Escape` closes
+  the inspector. The Undo button's tooltip names its shortcut.
+- **Build chunking.** `manualChunks` splits react, map and forms vendors out of the app bundle,
+  removing the 500 kB warning and meaning an app-code change no longer invalidates all vendor code
+  in the browser cache. Largest chunk is now 165 kB (54 kB gzipped).
+- **README** — what it does, requirements, how to run both processes, the full configuration table
+  for both `.env.example` files, the API reference, project layout, and the OpenStreetMap tile
+  attribution and usage-policy note with pointers to MapTiler / Stadia for anything heavier.
+
+### Bugs found and fixed during testing
+
+- **The stats strip clipped long values.** A route spanning thousands of kilometres pushed
+  "7446.17 km" and "206 h 50 m" out of their columns. Two fixes: `formatDistance` now drops decimals
+  above 100 km and thousands-separates, `formatDuration` gained a compact `8d 14h` tier and tighter
+  `2m 05s` / `1h 04m` forms; and the strip truncates with the full value in a tooltip rather than
+  overflowing.
+- **`constants.js` could not be imported outside Vite** because it read `import.meta.env` at module
+  scope. It now falls back to an empty object, which made the pure helpers unit-testable.
+
+### Testing
+
+- **40-assertion unit run over `lib/geo.js`** (bundled with esbuild so Vite-style extensionless
+  imports resolve): every `formatDistance` and `formatDuration` boundary including the 1 km, 100 km,
+  60 s, 60 m and 24 h thresholds; `totalDistance` against known great-circle values; and
+  `estimatedDuration` proving the global-speed fallback, per-waypoint speed override, stop penalties
+  only on stopping turn modes, and hover durations. Also `photoCount` and the `pathToSvgPoints`
+  degenerate cases — a single point, and a due north–south line whose longitude span is zero, which
+  must not produce `NaN`. **40 passed, 0 failed.**
+- **Error boundary exercised for real** by temporarily making `Library` throw: the fallback rendered
+  with the message and both recovery buttons, the nav stayed usable, and clicking through to the
+  editor cleared the boundary. The probe was then reverted and the revert verified.
+- **Keyboard shortcuts and the responsive rule** verified in the browser: Escape closed the
+  inspector, Delete removed the selected waypoint (3 → 2), Ctrl+Z restored it (2 → 3), and the
+  inspector computed to `position: static` at 1536 px with the `absolute … xl:static` classes
+  confirming the overlay below that width.
+- **The `beforeunload` guard proved itself** by blocking a navigation away from an edited mission.
+- **Backend smoke suite re-run: 39 passed, 0 failed.** All three pages render clean, the 404 route
+  shows its message, and `npm run build` succeeds.
+
+### Known limitations
+
+- In-app navigation with unsaved changes is not blocked — `react-router` needs a data router for
+  `useBlocker`, so the guard is the `beforeunload` dialog plus the persistent "unsaved changes"
+  badge.
+- The mission store is memory-only; a hard reload of an unsaved mission loses it.
+- Altitude modes are stored as a mode plus a number with no terrain service to convert between them.
+
+---
+
 ## Phase plan
 
 | Phase | Contents | Status |
@@ -394,4 +454,4 @@ error states, keyboard affordances, and the README.
 | 3 | Waypoint inspector, actions, global settings, save/update | **Complete** |
 | 4 | Wayline library: list, search, sort, load, duplicate, delete, thumbnails | **Complete** |
 | 5 | Drone fleet and assignments | **Complete** |
-| 6 | Polish, error handling, loading states, README | Not started |
+| 6 | Polish, error handling, responsive layout, shortcuts, README | **Complete** |

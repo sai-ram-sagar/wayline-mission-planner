@@ -69,20 +69,33 @@ export function photoCount(waypoints) {
   );
 }
 
-/** "994.1 m" / "1.24 km" */
+/**
+ * "994.1 m" / "1.24 km" / "7446 km"
+ *
+ * Precision drops as the number grows so the readout stays narrow enough for
+ * the stats strip even on an accidentally continent-spanning route.
+ */
 export function formatDistance(metres) {
   if (!Number.isFinite(metres) || metres <= 0) return '0 m';
-  return metres < 1000 ? `${metres.toFixed(1)} m` : `${(metres / 1000).toFixed(2)} km`;
+  if (metres < 1000) return `${metres.toFixed(1)} m`;
+  const km = metres / 1000;
+  if (km < 100) return `${km.toFixed(2)} km`;
+  return `${Math.round(km).toLocaleString()} km`;
 }
 
-/** "0 s" / "45 s" / "2 m 5 s" / "1 h 04 m" */
+/** "0 s" / "45 s" / "2m 05s" / "1h 04m" / "8d 14h" */
 export function formatDuration(seconds) {
   if (!Number.isFinite(seconds) || seconds <= 0) return '0 s';
   const total = Math.round(seconds);
   if (total < 60) return `${total} s`;
+
   const minutes = Math.floor(total / 60);
-  if (minutes < 60) return `${minutes} m ${total % 60} s`;
-  return `${Math.floor(minutes / 60)} h ${String(minutes % 60).padStart(2, '0')} m`;
+  if (minutes < 60) return `${minutes}m ${String(total % 60).padStart(2, '0')}s`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ${String(minutes % 60).padStart(2, '0')}m`;
+
+  return `${Math.floor(hours / 24)}d ${String(hours % 24).padStart(2, '0')}h`;
 }
 
 /** Signed degrees to a 6-decimal string, e.g. "-37.804998". */

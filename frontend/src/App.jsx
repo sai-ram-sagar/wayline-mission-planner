@@ -1,8 +1,9 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { TbDrone, TbMap2, TbRoute } from 'react-icons/tb';
 import Editor from './pages/Editor';
 import Library from './pages/Library';
 import Drones from './pages/Drones';
+import ErrorBoundary from './components/ErrorBoundary';
 import { useMissionStore } from './store';
 
 const NAV = [
@@ -57,24 +58,31 @@ function TopBar() {
 }
 
 export default function App() {
+  const location = useLocation();
+
   return (
     <div className="flex h-full flex-col">
       <TopBar />
       <main className="min-h-0 flex-1">
-        <Routes>
-          <Route path="/" element={<Navigate to="/editor" replace />} />
-          <Route path="/editor" element={<Editor />} />
-          <Route path="/library" element={<Library />} />
-          <Route path="/drones" element={<Drones />} />
-          <Route
-            path="*"
-            element={
-              <div className="grid h-full place-items-center text-sm text-slate-400">
-                Page not found.
-              </div>
-            }
-          />
-        </Routes>
+        {/* Keyed by pathname so navigating away from a crashed page clears the
+            boundary instead of stranding the user on the error screen. */}
+        <ErrorBoundary key={location.pathname}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/editor" replace />} />
+            <Route path="/editor" element={<Editor />} />
+            <Route path="/library" element={<Library />} />
+            <Route path="/drones" element={<Drones />} />
+            <Route
+              path="*"
+              element={
+                <div className="grid h-full place-items-center px-6 text-center text-sm text-slate-400">
+                  That page does not exist. Use the links above to reach the editor, library or
+                  fleet.
+                </div>
+              }
+            />
+          </Routes>
+        </ErrorBoundary>
       </main>
     </div>
   );
